@@ -18,8 +18,11 @@
     "sourceMap": false,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "rootDir": ".",
+    "rootDir": "src",
     "baseUrl": ".",
+    "paths": {
+      "src/*": ["src/*"],
+    }
   },
   "include": [
     "src"
