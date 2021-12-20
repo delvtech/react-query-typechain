@@ -1,0 +1,6 @@
+.github
+.vscode
+scripts
+src
+.env
+*.env
