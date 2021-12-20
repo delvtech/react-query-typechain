@@ -2,13 +2,13 @@
   "name": "@elementfi/react-query-typechain",
   "version": "1.0.0",
   "description": "React Query bindings for typechain",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "files": [
     "dist"
   ],
-  "types": "dist/types.d.ts",
+  "types": "dist/src/types.d.ts",
   "scripts": {
-    "build": "tsc --build"
+    "build": "tsc"
   },
   "repository": {
     "type": "git",
