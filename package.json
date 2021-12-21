@@ -1,6 +1,6 @@
 {
   "name": "@elementfi/react-query-typechain",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "React Query bindings for typechain",
   "main": ".",
   "files": [
