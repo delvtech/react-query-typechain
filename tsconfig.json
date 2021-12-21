@@ -21,8 +21,18 @@
     "rootDir": "src",
     "baseUrl": ".",
     "paths": {
-      "src/*": ["src/*"],
-    }
+      "src/*": [
+        "./src/*"
+      ],
+    },
+    "plugins": [
+      {
+        "exclude": [
+          "*"
+        ],
+        "transform": "@zerollup/ts-transform-paths"
+      }
+    ]
   },
   "include": [
     "src"
