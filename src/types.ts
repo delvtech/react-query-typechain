@@ -17,6 +17,14 @@ export type ContractCall<
 > = TContract[TMethodName];
 
 /**
+ * Gets a type for a estimateGas call
+ */
+export type EstimateGasContractCall<
+  TContract extends Contract,
+  TMethodName extends ContractMethodName<TContract>
+> = TContract["estimateGas"][TMethodName];
+
+/**
  * Gets a type for a contract query call
  */
 export type ContractFilterCall<
@@ -37,8 +45,13 @@ export type ContractFunctionCall<
 /**
  * Gets a type for the methods available on a given contract
  */
+export type StaticContractMethodName<TContract extends Contract> =
+  keyof TContract["callStatic"];
 export type ContractMethodName<TContract extends Contract> =
   keyof TContract["functions"];
+
+export type EstimateGasMethodName<TContract extends Contract> =
+  keyof TContract["estimateGas"];
 
 /**
  * Gets a type for the filters available on a given contract
@@ -73,8 +86,13 @@ export type ContractMethodArgs<
 
 export type StaticContractMethodArgs<
   TContract extends Contract,
-  TMethodName extends ContractMethodName<TContract>
+  TMethodName extends StaticContractMethodName<TContract>
 > = Parameters<StaticContractCall<TContract, TMethodName>>;
+
+export type EstimateGasMethodArgs<
+  TContract extends Contract,
+  TMethodName extends EstimateGasMethodName<TContract>
+> = Parameters<EstimateGasContractCall<TContract, TMethodName>>;
 
 /**
  * Gets a type for the call arguments of a given contract and method name

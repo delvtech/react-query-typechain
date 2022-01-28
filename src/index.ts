@@ -7,4 +7,5 @@ export * from "src/hooks/useSmartContractEvents/useSmartContractEvents";
 export * from "src/hooks/useSmartContractReadCall/useSmartContractReadCall";
 export * from "src/hooks/useSmartContractReadCalls/useSmartContractReadCalls";
 export * from "src/hooks/useSmartContractTransaction/useSmartContractTransaction";
+export * from "src/hooks/useSmartContractEstimateGas/useSmartContractEstimateGas";
 export * from "src/types";
