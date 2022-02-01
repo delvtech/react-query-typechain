@@ -1,4 +1,4 @@
-import { BigNumber, Contract } from "ethers";
+import { BigNumber, Contract, Signer } from "ethers";
 import { QueryObserverResult, useQuery, UseQueryOptions } from "react-query";
 import {
   EstimateGasMethodName,
@@ -22,11 +22,13 @@ export function useSmartContractEstimateGas<
   // TODO: contracts should not be undefined thanks to tokenlist
   contract: TContract | undefined,
   methodName: TMethodName,
+  signer: Signer | undefined,
   options: UseSmartContractEstimateGasOptions<TContract, TMethodName>
 ): QueryObserverResult<BigNumber> {
   const queryOptions = makeSmartContractEstimateGasUseQueryOptions(
     contract,
     methodName,
+    signer,
     options
   );
 
@@ -41,36 +43,36 @@ export function makeSmartContractEstimateGasUseQueryOptions<
 >(
   contract: TContract | undefined,
   methodName: TMethodName,
+  signer: Signer | undefined,
   options?: UseSmartContractEstimateGasOptions<TContract, TMethodName>
 ): UseQueryOptions<BigNumber> {
   const { enabled = true, callArgs, staleTime } = options || {};
 
-  const queryKey = makeSmartContractEstimateGasQueryKey<TContract, TMethodName>(
-    contract?.address,
-    methodName,
-    callArgs
-  );
-
-  const queryFn = async (): Promise<BigNumber> => {
-    const finalArgs = callArgs || [];
-    // safe to cast the contract, because we know it isn't undefined thanks to
-    // the enabled option
-    const result = await (contract as TContract).estimateGas[
-      methodName as string // estimateGas isn't generic, so we must cast here
-    ](...finalArgs);
-    return result;
-  };
-
   const queryOptions: UseQueryOptions<BigNumber> = {
-    queryKey,
-    queryFn,
+    queryKey: makeSmartContractEstimateGasQueryKey<TContract, TMethodName>(
+      contract?.address,
+      methodName,
+      callArgs
+    ),
+    queryFn: async (): Promise<BigNumber> => {
+      const finalArgs = callArgs || [];
+
+      // safe to cast the contract and signer, because we know it isn't
+      // undefined thanks to the enabled option
+      const result = await (contract as TContract)
+        .connect(signer as Signer)
+        .estimateGas[
+          methodName as string // estimateGas isn't generic, so we must cast here
+        ](...finalArgs);
+      return result;
+    },
     onError: () => {
       console.error(
         `Error calling estimateGas.${methodName} on ${contract?.address} with arguments:`,
         callArgs
       );
     },
-    enabled: !!contract && enabled,
+    enabled: !!contract && !!signer && enabled,
   };
 
   if ("staleTime" in (options || {}) && Number.isFinite(staleTime)) {
