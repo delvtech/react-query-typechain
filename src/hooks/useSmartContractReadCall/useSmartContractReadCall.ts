@@ -19,6 +19,7 @@ export interface UseSmartContractReadCallOptions<
   enabled?: boolean;
   staleTime?: number;
 
+  keepPreviousData?: boolean;
   select?: (data: TReturnType) => TSelect;
 }
 
@@ -69,7 +70,13 @@ export function makeSmartContractReadCallUseQueryOptions<
     TData
   >
 ): UseQueryOptions<TContractData, unknown, TData> {
-  const { enabled = true, callArgs, staleTime, select } = options || {};
+  const {
+    enabled = true,
+    callArgs,
+    staleTime,
+    select,
+    keepPreviousData,
+  } = options || {};
 
   const queryKey = makeSmartContractReadCallQueryKey<TContract, TMethodName>(
     contract?.address,
@@ -96,12 +103,10 @@ export function makeSmartContractReadCallUseQueryOptions<
       );
     },
     select: select || (IDENTITY_FN as (v: TContractData) => TData),
+    keepPreviousData,
+    staleTime,
     enabled: !!contract && enabled,
   };
-
-  if ("staleTime" in (options || {}) && Number.isFinite(staleTime)) {
-    queryOptions.staleTime = staleTime as number;
-  }
 
   return queryOptions;
 }
