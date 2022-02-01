@@ -1,5 +1,6 @@
-import { Contract, ContractReceipt, ContractTransaction, Signer } from "ethers";
+import { BigNumber, Contract, ContractReceipt, ContractTransaction, Signer } from "ethers";
 import { useMutation, UseMutationResult } from "react-query";
+import { useSmartContractEstimateGas } from "src/";
 import {
   isTransactionFailedError,
   isTransactionReplacedError,
@@ -12,6 +13,10 @@ export interface UseSmartContractTransactionOptions<
   TContract extends Contract,
   TMethodName extends ContractMethodName<TContract>
 > {
+  mapCallArgsBeforeTransaction?: (
+    callArgs: ContractMethodArgs<TContract, TMethodName>,
+    gasEstimate: BigNumber
+  ) => ContractMethodArgs<TContract, TMethodName>;
   onTransactionSubmitted?: (
     transaction: ContractTransaction,
     callArgs: ContractMethodArgs<TContract, TMethodName>
@@ -32,15 +37,22 @@ export function useSmartContractTransaction<
   // TODO: contracts should not be undefined thanks to tokenlist
   contract: TContract | undefined,
   methodName: TMethodName,
+  callArgs: ContractMethodArgs<TContract, TMethodName>,
   signer: Signer | undefined,
   options: UseSmartContractTransactionOptions<TContract, TMethodName> = {}
 ): UseMutationResult<
   ContractReceipt | undefined,
   unknown,
   ContractMethodArgs<TContract, TMethodName>
-> {
-  const { onTransactionMined, onTransactionSubmitted, onError } = options;
-  return useMutation({
+> & { execute: () => void } {
+  const {
+    onTransactionMined,
+    onTransactionSubmitted,
+    onError,
+    mapCallArgsBeforeTransaction: onBeforeTransaction,
+  } = options;
+
+  const mutationResult = useMutation({
     mutationFn: async (
       args: ContractMethodArgs<TContract, TMethodName>
     ): Promise<ContractReceipt> => {
@@ -56,9 +68,20 @@ export function useSmartContractTransaction<
       }
 
       const connected = (await contract.connect(signer)) as TContract;
+
+      let finalCallArgs = args;
+      if (onBeforeTransaction) {
+        const gasEstimate = await connected.estimateGas[
+          methodName as string // estimateGas isn't generic, so we must cast here
+        ]?.(args);
+
+        finalCallArgs = onBeforeTransaction(args, gasEstimate);
+      }
+
       const transaction: ContractTransaction = await connected[methodName](
-        ...args
+        ...finalCallArgs
       );
+
       onTransactionSubmitted?.(transaction, args);
 
       return transaction?.wait();
@@ -111,4 +134,11 @@ export function useSmartContractTransaction<
       return onTransactionMined?.(txReceipt, vars, TransactionStatus.MINED);
     },
   });
+
+  return {
+    ...mutationResult,
+    execute: () => {
+      mutationResult.mutate(callArgs);
+    },
+  };
 }
