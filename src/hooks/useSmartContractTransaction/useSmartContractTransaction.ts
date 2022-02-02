@@ -99,7 +99,7 @@ export function useSmartContractTransaction<
 
         const lastItem = args[args.length - 1];
         if (isOverridesObject(lastItem)) {
-          const argsWithoutOverrides = args.slice(0, args.length);
+          const argsWithoutOverrides = args.slice(0, args.length - 1);
           const newOverrides: Overrides = { ...lastItem, gasLimit };
           finalCallArgs = [
             ...argsWithoutOverrides,
