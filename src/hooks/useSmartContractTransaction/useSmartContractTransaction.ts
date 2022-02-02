@@ -1,4 +1,11 @@
-import { Contract, ContractReceipt, ContractTransaction, Signer } from "ethers";
+import {
+  BigNumber,
+  Contract,
+  ContractReceipt,
+  ContractTransaction,
+  Overrides,
+  Signer,
+} from "ethers";
 import { useMutation, UseMutationResult } from "react-query";
 import {
   isTransactionFailedError,
@@ -6,12 +13,25 @@ import {
   TransactionError,
 } from "src/base/TransactionError";
 import { TransactionStatus } from "src/base/TransactionStatus";
-import { ContractMethodArgs, ContractMethodName } from "src/types";
+import {
+  ContractFunctionCall,
+  ContractMethodArgs,
+  ContractMethodName,
+  EstimateGasContractCall,
+  EstimateGasMethodName,
+} from "src/types";
+import { isOverridesObject } from "src/utils/isOverridesObject";
 
 export interface UseSmartContractTransactionOptions<
   TContract extends Contract,
   TMethodName extends ContractMethodName<TContract>
 > {
+  /**
+   * Sets the gas limit on the transaction, overriding anything that was
+   * provided when the `mutate` function is called. Useful if you need to buffer
+   * the default gas estimate by some amount.
+   */
+  setGasLimit?: (gasEstimate: BigNumber) => BigNumber;
   onTransactionSubmitted?: (
     transaction: ContractTransaction,
     callArgs: ContractMethodArgs<TContract, TMethodName>
@@ -25,6 +45,15 @@ export interface UseSmartContractTransactionOptions<
   onError?: (error: TransactionError) => void | Promise<void>;
 }
 
+type UseSmartContractTransactionResult<
+  TContract extends Contract,
+  TMethodName extends ContractMethodName<TContract>
+> = UseMutationResult<
+  ContractReceipt | undefined,
+  unknown,
+  ContractMethodArgs<TContract, TMethodName>
+>;
+
 export function useSmartContractTransaction<
   TContract extends Contract,
   TMethodName extends ContractMethodName<TContract>
@@ -34,12 +63,10 @@ export function useSmartContractTransaction<
   methodName: TMethodName,
   signer: Signer | undefined,
   options: UseSmartContractTransactionOptions<TContract, TMethodName> = {}
-): UseMutationResult<
-  ContractReceipt | undefined,
-  unknown,
-  ContractMethodArgs<TContract, TMethodName>
-> {
-  const { onTransactionMined, onTransactionSubmitted, onError } = options;
+): UseSmartContractTransactionResult<TContract, TMethodName> {
+  const { onTransactionMined, onTransactionSubmitted, onError, setGasLimit } =
+    options;
+
   return useMutation({
     mutationFn: async (
       args: ContractMethodArgs<TContract, TMethodName>
@@ -56,8 +83,38 @@ export function useSmartContractTransaction<
       }
 
       const connected = (await contract.connect(signer)) as TContract;
+
+      let finalCallArgs: ContractMethodArgs<TContract, TMethodName> = args;
+
+      // Sets the gasLimit by either updating the existing overrides object,
+      // or adding one if it doesn't exist.
+      if (setGasLimit) {
+        const gasEstimate = await fetchGasEstimate<TContract, TMethodName>(
+          connected,
+          methodName,
+          args
+        );
+
+        const gasLimit = setGasLimit(gasEstimate);
+
+        const lastItem = args[args.length - 1];
+        if (isOverridesObject(lastItem)) {
+          const argsWithoutOverrides = args.slice(0, args.length);
+          const newOverrides: Overrides = { ...lastItem, gasLimit };
+          finalCallArgs = [
+            ...argsWithoutOverrides,
+            newOverrides,
+          ] as ContractMethodArgs<TContract, TMethodName>;
+        } else {
+          finalCallArgs = [...args, { gasLimit }] as ContractMethodArgs<
+            TContract,
+            TMethodName
+          >;
+        }
+      }
+
       const transaction: ContractTransaction = await connected[methodName](
-        ...args
+        ...finalCallArgs
       );
       onTransactionSubmitted?.(transaction, args);
 
@@ -111,4 +168,22 @@ export function useSmartContractTransaction<
       return onTransactionMined?.(txReceipt, vars, TransactionStatus.MINED);
     },
   });
+}
+
+async function fetchGasEstimate<
+  TContract extends Contract,
+  TMethodName extends ContractMethodName<TContract>
+>(
+  connected: TContract,
+  methodName: TMethodName,
+  args: Parameters<ContractFunctionCall<TContract, TMethodName>>
+): Promise<BigNumber> {
+  return (
+    connected.estimateGas as Record<
+      // typechain's estimateGas isn't strongly typed, so we cast so that
+      // `methodName` is type-safe
+      EstimateGasMethodName<TContract>,
+      EstimateGasContractCall<TContract, TMethodName>
+    >
+  )[methodName](args);
 }
