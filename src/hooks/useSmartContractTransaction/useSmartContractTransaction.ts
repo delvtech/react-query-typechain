@@ -185,5 +185,5 @@ async function fetchGasEstimate<
       EstimateGasMethodName<TContract>,
       EstimateGasContractCall<TContract, TMethodName>
     >
-  )[methodName](args);
+  )[methodName](...args);
 }
